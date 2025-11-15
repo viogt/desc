@@ -1,0 +1,12 @@
+{
+  "name": "simple-nodejs-webapp",
+  "version": "1.0.0",
+  "description": "A simple Node.js web application",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": ["nodejs", "webapp"],
+  "author": "",
+  "license": "ISC"
+}
