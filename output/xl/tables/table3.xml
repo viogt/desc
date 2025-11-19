@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="6" name="табл_Регион_НовыеТП" displayName="табл_Регион_НовыеТП" ref="F2:F18" totalsRowShown="0" headerRowDxfId="8" dataDxfId="6" headerRowBorderDxfId="7" tableBorderDxfId="5" totalsRowBorderDxfId="4"><autoFilter ref="F2:F18"/><tableColumns count="1"><tableColumn id="1" name="Регион" dataDxfId="3"/></tableColumns><tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" showLastColumn="0" showRowStripes="1" showColumnStripes="0"/></table>

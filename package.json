@@ -6,7 +6,18 @@
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": ["nodejs", "webapp"],
+  "keywords": [
+    "nodejs",
+    "webapp"
+  ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "jsdom": "^27.2.0",
+    "jszip": "^3.10.1",
+    "multer": "^2.0.2",
+    "unzipper": "^0.12.3",
+    "yazl": "^3.3.1"
+  }
 }
