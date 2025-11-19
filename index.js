@@ -59,7 +59,7 @@ const uploadFormHtml = `
 </head>
 <body>
     <div class="container">
-        <h1>XLSX Upload Only</h1>
+        <h1>Upload an Excel File</h1>
         <p class="allowed-text">Accepts only .xlsx files.</p>
 
         <form action="/upload" method="post" enctype="multipart/form-data">
