@@ -6,8 +6,7 @@ const JSZip = require("jszip");
 const { JSDOM } = require("jsdom");
 
 const app = express();
-const PORT = 5000;
-const UPLOAD_DIR = "uploads/";
+const PORT = process.env.PORT || 5000;
 
 const xlsxFileFilter = (req, file, cb) => {
     const isXlsxExt = path.extname(file.originalname).toLowerCase() === ".xlsx";
@@ -37,52 +36,77 @@ const upload = multer({
 });
 
 const uploadFormHtml = `
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload an Excel File</title>
-    <style>
-        body { font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f4f7f6; }
-        .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; text-align: center; }
-        h1 { color: #333; margin-bottom: 25px; font-size: 1.8rem; }
-        .allowed-text { color: #666; margin-bottom: 20px; font-style: italic; }
-        .message { margin-top: 20px; padding: 15px; border-radius: 8px; font-weight: bold; }
-        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        input[type="file"] { border: 1px solid #ccc; padding: 10px; width: 100%; border-radius: 6px; box-sizing: border-box; margin-bottom: 20px; }
-        button { background-color: #007bff; color: white; padding: 12px 25px; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; transition: background-color 0.3s; width: 100%; }
-        button:hover { background-color: #0056b3; }
-        span { color: #fff; background-color: #c00; padding: 2px 8px; border-radius: 6px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Upload an Excel File</h1>
-        <p class="allowed-text">Accepts only .xlsx files.</p>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Upload an Excel File</title>
+        <style>
+            .container {
+                max-width: 600px;
+                margin: auto;
+                padding: 24px;
+                background-color: #eee;
+                border: 0.8px solid #ccc;
+                border-radius: 16px;
+                font:
+                    normal 18px/1.4 Arial,
+                    sans-serif;
+                text-align: center;
+            }
+            h2 {
+                font:
+                    bold 32px Arial,
+                    sans-serif;
+                color: #aab;
+            }
+            input[type="file"] { font-size: 18px; }
+            span { color: #fff; background-color: #c00; padding: 2px 8px; border-radius: 6px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Upload and Analyze</h2>
+            <input type="file" id="fileInput" onchange="uploadFile()" />
+            <p id="message"></p>
+        </div>
 
-        <form action="/upload" method="post" enctype="multipart/form-data">
-            <input type="file" name="myFile" required>
-            <button type="submit">Upload Spreadsheet</button>
-        </form>
+        <script>
+            async function uploadFile() {
+                const fileInput = document.getElementById("fileInput");
+                const file = fileInput.files[0]; // Get the first selected file
+                const messageElement = document.getElementById("message");
 
-        <div id="statusMessage"></div>
-    </div>
+                if (!file || !file.name.endsWith(".xlsx")) {
+                    messageElement.innerHTML =
+                        "<font color='red'>Please select an .XLSX file.</font>";
+                    return;
+                }
+                messageElement.innerHTML = "<font color='blue'>Processing...</font>";
 
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const statusMessage = document.getElementById('statusMessage');
+                const formData = new FormData();
+                formData.append("myFile", file);
 
-        if (urlParams.has('success')) {
-            const fileName = urlParams.get('success');
-            statusMessage.innerHTML = \`<div class="message success">\${fileName}</div>\`;
-        } else if (urlParams.has('error')) {
-            // Display error message from the Multer fileFilter or general error
-            statusMessage.innerHTML = \`<div class="message error">Upload Failed: \${urlParams.get('error')}</div>\`;
-        }
-    </script>
-</body>
+                try {
+                    const response = await fetch("/upload", {
+                        method: "POST",
+                        body: formData,
+                    });
+
+                    if (response.ok)
+                        messageElement.innerHTML = await response.text();
+                    else {
+                        const errorText = await response.text();
+                        //messageElement.textContent = "Upload failed:" + response.status + " - " + errorText;
+                    }
+                } catch (error) {
+                    messageElement.textContent = "Network error: " + error.message;
+                    console.error("Fetch error:", error);
+                }
+            }
+        </script>
+    </body>
 </html>
 `;
 
@@ -91,16 +115,17 @@ app.get("/", (req, res) => {
 });
 
 app.post("/upload", async (req, res) => {
+    console.log("File received");
     upload.single("myFile")(req, res, (err) => {
         if (err) {
             const errorMessage =
                 err.message || "An unknown upload error occurred.";
             console.error("Upload Error:", errorMessage);
-            return res.redirect(`/?error=${encodeURIComponent(errorMessage)}`);
+            return res.send(`ERROR: ${encodeURIComponent(errorMessage)}`);
         }
 
         if (!req.file) {
-            return res.redirect("/?error=No+file+selected");
+            return res.send("ERROR: No file selected");
         }
 
         console.log(`Valid file received and saved: ${req.file.path}`);
@@ -185,8 +210,8 @@ async function modify(archive, res) {
 
         await Promise.all(modPromises);
         if (!modified)
-            return res.redirect(
-                `/?success=${encodeURIComponent("This file is not locked.")}`,
+            return res.send(
+                "<font color='blue'>This file is not locked.</font>",
             );
         const newZipData = await zip.generateAsync({
             type: "nodebuffer",
@@ -194,10 +219,10 @@ async function modify(archive, res) {
             compressionOptions: { level: 9 },
         });
         fs.writeFileSync("unlocked.xlsx", newZipData);
-        return res.redirect(`/?success=${encodeURIComponent(show())}`);
+        return res.send(show());
     } catch (err) {
         console.log(err);
-        return res.redirect(`/?error=${err.message}`);
+        return res.send(`ERROR: ${err.message}`);
     }
 }
 
@@ -223,7 +248,7 @@ function show() {
     console.log("> Unlocked.xlsx created");
     num = 1;
     let str =
-        'FILE UNLOCKED:<br><table cellPadding="4" cellSpacing="4" style="font-weight:normal;border:1px solid #888;color:#000;background-color:#fff;width:100%;">';
+        'FILE UNLOCKED:<br><table cellPadding="4" cellSpacing="4" style="font-weight:normal;border:.8px solid #aaa;border-radius: 6px;color:#000;background-color:#fff;width:100%;">';
     for (el of foi) {
         str += `<tr><td>${num}</td><td align="left">${el.name}</td><td>${el.state == "hidden" ? "<span style='background-color:purple'>hidden</span>" : "—"}</td><td>${el.prot ? "<span>protected</span>" : "—"}</td></tr>`;
         num++;

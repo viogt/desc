@@ -9,21 +9,14 @@ const app = express();
 const PORT = 5000;
 const UPLOAD_DIR = "uploads/";
 
-// --- 1. Define the File Filter (The Answer to Your Question) ---
 const xlsxFileFilter = (req, file, cb) => {
-    // 1. Check the file extension (case-insensitive)
     const isXlsxExt = path.extname(file.originalname).toLowerCase() === ".xlsx";
-
-    // 2. Check the MIME type (most reliable check)
     const isXlsxMime =
         file.mimetype ===
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
     if (isXlsxExt && isXlsxMime) {
-        // Accept the file (null for no error, true for acceptance)
         cb(null, true);
     } else {
-        // Reject the file (Error object for the failure reason, false for rejection)
         cb(
             new Error("Only Microsoft Excel (.xlsx) files are permitted."),
             false,
@@ -31,7 +24,6 @@ const xlsxFileFilter = (req, file, cb) => {
     }
 };
 
-// --- 2. Setup Multer Storage ---
 const storage = multer.diskStorage({
     destination: ".",
     filename: (req, file, cb) => {
@@ -39,20 +31,18 @@ const storage = multer.diskStorage({
     },
 });
 
-// --- 3. Create Multer Instance with the Filter ---
 const upload = multer({
     storage: storage,
-    fileFilter: xlsxFileFilter, // <-- This applies the rule!
+    fileFilter: xlsxFileFilter,
 });
 
-// --- HTML Form for Upload ---
 const uploadFormHtml = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XLSX Only Uploader</title>
+    <title>Upload an Excel File</title>
     <style>
         body { font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f4f7f6; }
         .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; text-align: center; }
@@ -69,7 +59,7 @@ const uploadFormHtml = `
 </head>
 <body>
     <div class="container">
-        <h1>XLSX Upload Only</h1>
+        <h1>Upload an Excel File</h1>
         <p class="allowed-text">Accepts only .xlsx files.</p>
 
         <form action="/upload" method="post" enctype="multipart/form-data">
@@ -86,7 +76,7 @@ const uploadFormHtml = `
 
         if (urlParams.has('success')) {
             const fileName = urlParams.get('success');
-            statusMessage.innerHTML = \`<div class="message success">Unlocked:\${fileName}</div>\`;
+            statusMessage.innerHTML = \`<div class="message success">\${fileName}</div>\`;
         } else if (urlParams.has('error')) {
             // Display error message from the Multer fileFilter or general error
             statusMessage.innerHTML = \`<div class="message error">Upload Failed: \${urlParams.get('error')}</div>\`;
@@ -96,17 +86,13 @@ const uploadFormHtml = `
 </html>
 `;
 
-// --- Routes ---
-
 app.get("/", (req, res) => {
     res.send(uploadFormHtml);
 });
 
 app.post("/upload", async (req, res) => {
-    // The core logic for error handling remains the same.
     upload.single("myFile")(req, res, (err) => {
         if (err) {
-            // This captures the error thrown by the fileFilter
             const errorMessage =
                 err.message || "An unknown upload error occurred.";
             console.error("Upload Error:", errorMessage);
@@ -117,7 +103,6 @@ app.post("/upload", async (req, res) => {
             return res.redirect("/?error=No+file+selected");
         }
 
-        // Success: File is valid and saved.
         console.log(`Valid file received and saved: ${req.file.path}`);
         modify(req.file.path, res);
     });
@@ -127,8 +112,7 @@ app.get("/download", (req, res) => {
     res.download("unlocked.xlsx");
 });
 
-//const archive = "old.xlsx";
-const foi = [];
+var foi, foiAdd, modified;
 
 async function modify(archive, res) {
     try {
@@ -137,6 +121,8 @@ async function modify(archive, res) {
         const rgx = /xl\/worksheets\/sheet\d+\.xml/;
 
         const modPromises = [];
+        (foi = []), (foiAdd = []);
+        modified = false;
 
         zip.forEach(async (pth, file) => {
             if (pth === "xl/workbook.xml") {
@@ -171,10 +157,10 @@ async function modify(archive, res) {
                         }
                     }
 
-                    zip.file(pth, dom.serialize());
-
-                    //if (change) outZip.addBuffer(dom.serialize(), file.path); //---!!! IF
-                    //outZip.addBuffer(Buffer.from(newBuf), file.path);
+                    if (change) {
+                        zip.file(pth, dom.serialize());
+                        modified = true;
+                    }
                 })(pth, file);
                 modPromises.push(modTask);
             } else if (rgx.test(pth)) {
@@ -185,40 +171,43 @@ async function modify(archive, res) {
                     });
                     const doc = dom.window.document;
                     const prt = doc.querySelector("sheetProtection");
-                    getName(pth, prt ? true : false);
+                    //getName(pth, prt ? true : false);
+                    foiAdd.push({ pth: pth, prot: prt ? true : false });
                     if (prt) {
                         prt.remove();
-                        //console.log("From", pth, "removed protection:\n");
                         zip.file(pth, dom.serialize());
+                        modified = true;
                     }
                 })(pth, file);
                 modPromises.push(modTask);
             }
         });
 
-        // modify file
-        //const newContent = "Hello modified!";
-        //zip.file("path/to/file.txt", newContent);
-
         await Promise.all(modPromises);
-        console.log("Length = " + modPromises.length);
-        const newZipData = await zip.generateAsync({ type: "nodebuffer" });
+        if (!modified)
+            return res.redirect(
+                `/?success=${encodeURIComponent("This file is not locked.")}`,
+            );
+        const newZipData = await zip.generateAsync({
+            type: "nodebuffer",
+            compression: "DEFLATE",
+            compressionOptions: { level: 9 },
+        });
         fs.writeFileSync("unlocked.xlsx", newZipData);
-
-        const fileNameForMessage = encodeURIComponent(show());
-        return res.redirect(`/?success=${fileNameForMessage}`);
+        return res.redirect(`/?success=${encodeURIComponent(show())}`);
     } catch (err) {
-        console.log("ERROR: " + err.message);
+        console.log(err);
         return res.redirect(`/?error=${err.message}`);
     }
 }
 
-function getName(nm, flag) {
-    const num = parseInt(nm.match(/\d+\.xml$/)[0]) - 1;
-    foi[num].prot = flag;
-}
-
 function show() {
+    for (el of foiAdd) {
+        const num = parseInt(el.pth.match(/\d+\.xml$/)[0]) - 1;
+        foi[num].prot = el.prot;
+    }
+    console.log(foi, foiAdd);
+
     console.log("\n-----------------sheets:", foi.length);
     let num = 1;
     for (el of foi) {
@@ -234,15 +223,14 @@ function show() {
     console.log("> Unlocked.xlsx created");
     num = 1;
     let str =
-        '<table cellPadding="4" cellSpacing="4" style="font-weight:normal;border:1px solid #888;color:#000;background-color:#fff;width:100%;">';
+        'FILE UNLOCKED:<br><table cellPadding="4" cellSpacing="4" style="font-weight:normal;border:1px solid #888;color:#000;background-color:#fff;width:100%;">';
     for (el of foi) {
-        str += `<tr><td>${num}</td><td align="left">${el.name}</td><td>${el.state == "hidden" ? "<span style='background-color:purple'>hidden</span>" : "---"}</td><td>${el.prot ? "<span>protected</span>" : "---"}</td></tr>`;
+        str += `<tr><td>${num}</td><td align="left">${el.name}</td><td>${el.state == "hidden" ? "<span style='background-color:purple'>hidden</span>" : "—"}</td><td>${el.prot ? "<span>protected</span>" : "—"}</td></tr>`;
         num++;
     }
-    return str + "</table><br><a href='/download'>Download unlocked</a>";
+    return str + "</table><br>▾ <a href='/download'>Download unlocked</a>";
 }
 
-// --- Start the Server ---
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
