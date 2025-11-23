@@ -43,18 +43,17 @@ const uploadFormHtml = `
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Upload an Excel File</title>
         <style>
-            .container {
-                max-width: 600px;
-                margin: auto;
-                padding: 24px;
-                background-color: #eee;
-                border: 0.8px solid #ccc;
-                border-radius: 16px;
-                font:
-                    normal 18px/1.4 Arial,
-                    sans-serif;
-                text-align: center;
-            }
+body { background-color: #ccc;}
+.container {
+max-width: 600px;
+margin: auto;
+padding: 24px;
+background-color: #fff;
+box-shadow: 0 4px 8px #888;
+border-radius: 16px;
+font: normal 18px Arial, sans-serif;
+text-align: center;
+}
             h2 {
                 font:
                     bold 32px Arial,
@@ -62,7 +61,32 @@ const uploadFormHtml = `
                 color: #aab;
             }
             input[type="file"] { font-size: 18px; }
-            span { color: #fff; background-color: #c00; padding: 2px 8px; border-radius: 6px; }
+b { font-weight:normal; background-color: orange; padding: 2px 8px; border-radius: 6px; }
+b[lilac] { background-color: yellow; }
+.loader {
+width: 18px;
+height: 18px;
+border: 5px solid #00F;
+border-bottom-color: transparent;
+border-radius: 50%;
+display: inline-block;
+box-sizing: border-box;
+animation: rotation 1s linear infinite;
+}
+@keyframes rotation {
+0% { transform: rotate(0deg); }
+100% { transform: rotate(360deg); }
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  padding: 12px;
+  border-top:.8px solid #ccc;
+}
+td {
+  border-bottom: .8px solid #ccc;
+  padding: 6px;
+}
         </style>
     </head>
     <body>
@@ -83,7 +107,7 @@ const uploadFormHtml = `
                         "<font color='red'>Please select an .XLSX file.</font>";
                     return;
                 }
-                messageElement.innerHTML = "<font color='blue'>Processing...</font>";
+                messageElement.innerHTML = "<span class='loader'></span> Processing...";
 
                 const formData = new FormData();
                 formData.append("myFile", file);
@@ -247,10 +271,9 @@ function show() {
     }
     console.log("> Unlocked.xlsx created");
     num = 1;
-    let str =
-        'FILE UNLOCKED:<br><table cellPadding="4" cellSpacing="4" style="font-weight:normal;border:.8px solid #aaa;border-radius: 6px;color:#000;background-color:#fff;width:100%;">';
+    let str = "FILE UNLOCKED:<br><table>";
     for (el of foi) {
-        str += `<tr><td>${num}</td><td align="left">${el.name}</td><td>${el.state == "hidden" ? "<span style='background-color:purple'>hidden</span>" : "—"}</td><td>${el.prot ? "<span>protected</span>" : "—"}</td></tr>`;
+        str += `<tr><td>${num}</td><td align="left">${el.name}</td><td>${el.state == "hidden" ? "<b lilac>hidden</b>" : "—"}</td><td>${el.prot ? "<b>protected</b>" : "—"}</td></tr>`;
         num++;
     }
     return str + "</table><br>▾ <a href='/download'>Download unlocked</a>";
