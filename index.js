@@ -63,20 +63,6 @@ text-align: center;
             input[type="file"] { font-size: 18px; }
 b { font-weight:normal; background-color: orange; padding: 2px 8px; border-radius: 6px; }
 b[lilac] { background-color: yellow; }
-.loader {
-width: 18px;
-height: 18px;
-border: 5px solid #00F;
-border-bottom-color: transparent;
-border-radius: 50%;
-display: inline-block;
-box-sizing: border-box;
-animation: rotation 1s linear infinite;
-}
-@keyframes rotation {
-0% { transform: rotate(0deg); }
-100% { transform: rotate(360deg); }
-}
 table {
   border-collapse: collapse;
   width: 100%;
@@ -87,28 +73,55 @@ td {
   border-bottom: .8px solid #ccc;
   padding: 6px;
 }
+#progress {
+    width: 100%; height: 20px; background: #ddd;
+    margin-top: 20px; border-radius: 6px; overflow: hidden;
+}
+#bar {
+    height: 100%; width: 0; background-color: green; transition: .2s;
+    color: #fff; text-align: center; font: normal 14px/20px Arial, sans-serif;
+}
         </style>
     </head>
     <body>
-        <div class="container">
-            <h2>Upload and Analyze</h2>
-            <input type="file" id="fileInput" onchange="uploadFile()" />
-            <p id="message"></p>
-        </div>
-
+<div class="container">
+<h2>Upload and Analyze</h2>
+<input type="file" id="fileInput" onchange="uploadFile()" />
+<div id="progress"><div id="bar"></div></div>
+<div id="message"></div>
+</div>
         <script>
+const log = document.getElementById("message");
+const bar = document.getElementById("bar");
+
+const es = new EventSource("/events");
+let progress;
+
+es.onmessage = (event) => {
+    let percent;
+    log.innerHTML += event.data.substr(event.data.indexOf(' ')+1) + "<br>";
+    if(event.data.charAt(0) == '0') return;
+    if(event.data.charAt(0) == '+') percent = '100%';
+    else percent = (progress += parseInt(event.data)) + '%';
+    bar.style.width = percent;
+    bar.textContent = percent;
+};
+
+es.onerror = () => {
+    log.textContent += "[Error / connection lost]\\n";
+};
             async function uploadFile() {
                 const fileInput = document.getElementById("fileInput");
                 const file = fileInput.files[0]; // Get the first selected file
                 const messageElement = document.getElementById("message");
+                messageElement.textContent = "";
+                progress = 0;
 
                 if (!file || !file.name.endsWith(".xlsx")) {
                     messageElement.innerHTML =
                         "<font color='red'>Please select an .XLSX file.</font>";
                     return;
                 }
-                messageElement.innerHTML = "<span class='loader'></span> Processing...";
-
                 const formData = new FormData();
                 formData.append("myFile", file);
 
@@ -119,7 +132,7 @@ td {
                     });
 
                     if (response.ok)
-                        messageElement.innerHTML = await response.text();
+                        messageElement.innerHTML += await response.text();
                     else {
                         const errorText = await response.text();
                         //messageElement.textContent = "Upload failed:" + response.status + " - " + errorText;
@@ -134,12 +147,36 @@ td {
 </html>
 `;
 
+const clients = new Set();
+
+function addClient(res) {
+    clients.add(res);
+    res.on("close", () => {
+        clients.delete(res);
+    });
+}
+
+function sendProg(mssg) {
+    const message = `data: ${mssg}\n\n`;
+    for (const client of clients) client.write(message);
+}
+
 app.get("/", (req, res) => {
     res.send(uploadFormHtml);
+    sendProg("0 Process started.");
+});
+
+app.get("/events", (req, res) => {
+    console.log("Client connected to SSE");
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+    addClient(res);
 });
 
 app.post("/upload", async (req, res) => {
-    console.log("File received");
+    sendProg("5 Processing started.");
     upload.single("myFile")(req, res, (err) => {
         if (err) {
             const errorMessage =
@@ -152,7 +189,7 @@ app.post("/upload", async (req, res) => {
             return res.send("ERROR: No file selected");
         }
 
-        console.log(`Valid file received and saved: ${req.file.path}`);
+        sendProg("11 File uploaded.");
         modify(req.file.path, res);
     });
 });
@@ -162,12 +199,14 @@ app.get("/download", (req, res) => {
 });
 
 var foi, foiAdd, modified;
+var protSheets, totSheets;
 
 async function modify(archive, res) {
     try {
         const data = fs.readFileSync(archive);
         const zip = await JSZip.loadAsync(data);
         const rgx = /xl\/worksheets\/sheet\d+\.xml/;
+        sendProg("12 Iterating through elements.");
 
         const modPromises = [];
         (foi = []), (foiAdd = []);
@@ -187,8 +226,10 @@ async function modify(archive, res) {
                     if (wkProt) {
                         wkProt.remove();
                         change = true;
-                        console.log(pth, "protected");
                     }
+                    sendProg(
+                        `7 Workbook ${wkProt ? "unlocked" : "is not locked"}.`,
+                    );
 
                     const sheets = doc.querySelectorAll("sheets > sheet");
                     for (const sheet of sheets) {
@@ -199,12 +240,16 @@ async function modify(archive, res) {
                         });
                     }
 
+                    let sCnt = 0;
+                    totSheets = sheets.length;
                     for (const sheet of sheets) {
                         if (sheet.getAttribute("state") === "hidden") {
                             sheet.removeAttribute("state");
                             change = true;
+                            sCnt++;
                         }
                     }
+                    sendProg(`10 ${sCnt}/${totSheets} sheets unhidden.`);
 
                     if (change) {
                         zip.file(pth, dom.serialize());
@@ -213,6 +258,7 @@ async function modify(archive, res) {
                 })(pth, file);
                 modPromises.push(modTask);
             } else if (rgx.test(pth)) {
+                protSheets = 0;
                 const modTask = (async (pth, file) => {
                     const buf = await file.async("text");
                     const dom = new JSDOM(buf, {
@@ -226,6 +272,7 @@ async function modify(archive, res) {
                         prt.remove();
                         zip.file(pth, dom.serialize());
                         modified = true;
+                        protSheets++;
                     }
                 })(pth, file);
                 modPromises.push(modTask);
@@ -233,16 +280,20 @@ async function modify(archive, res) {
         });
 
         await Promise.all(modPromises);
-        if (!modified)
+        sendProg(`45 ${protSheets}/${totSheets} sheets unlocked.`);
+        if (!modified) {
+            sendProg("+ File is not locked.");
             return res.send(
                 "<font color='blue'>This file is not locked.</font>",
             );
+        }
         const newZipData = await zip.generateAsync({
             type: "nodebuffer",
             compression: "DEFLATE",
             compressionOptions: { level: 9 },
         });
         fs.writeFileSync("unlocked.xlsx", newZipData);
+        sendProg("+ File prepared for download.");
         return res.send(show());
     } catch (err) {
         console.log(err);
@@ -271,7 +322,7 @@ function show() {
     }
     console.log("> Unlocked.xlsx created");
     num = 1;
-    let str = "FILE UNLOCKED:<br><table>";
+    let str = "<br><font color='blue'>FILE UNLOCKED:</font><br><table>";
     for (el of foi) {
         str += `<tr><td>${num}</td><td align="left">${el.name}</td><td>${el.state == "hidden" ? "<b lilac>hidden</b>" : "—"}</td><td>${el.prot ? "<b>protected</b>" : "—"}</td></tr>`;
         num++;
