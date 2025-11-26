@@ -74,14 +74,13 @@ td {
   padding: 6px;
 }
 #progress {
-    width: 100%; height: 28px; background: #ddd;
+    width: 100%; height: 20px; background: #ddd;
     margin-top: 20px; border-radius: 6px; overflow: hidden;
 }
 #bar {
-    height: 100%; width: 0; background: linear-gradient(to right,blue,green); transition: .2s;
-    color: #fff; text-align: center; font: normal 14px/28px Arial, sans-serif;
+    height: 100%; width: 0; background-color: green; transition: .2s;
+    color: #fff; text-align: center; font: normal 14px/20px Arial, sans-serif;
 }
-span { color: #a00; }
         </style>
     </head>
     <body>
@@ -132,10 +131,9 @@ es.onerror = () => {
                         body: formData,
                     });
 
-                    if (response.ok) {
+                    if (response.ok)
                         messageElement.innerHTML += await response.text();
-                        window.scroll({top:document.body.scrollHeight, behavior:'smooth'});
-                    } else {
+                    else {
                         const errorText = await response.text();
                         //messageElement.textContent = "Upload failed:" + response.status + " - " + errorText;
                     }
@@ -159,7 +157,6 @@ function addClient(res) {
 }
 
 function sendProg(mssg) {
-    console.log(mssg);
     const message = `data: ${mssg}\n\n`;
     for (const client of clients) client.write(message);
 }
@@ -179,7 +176,7 @@ app.get("/events", (req, res) => {
 });
 
 app.post("/upload", async (req, res) => {
-    //sendProg("5 Processing started.");
+    sendProg("5 Processing started.");
     upload.single("myFile")(req, res, (err) => {
         if (err) {
             const errorMessage =
@@ -202,17 +199,17 @@ app.get("/download", (req, res) => {
 });
 
 var foi, foiAdd, modified;
-var perSheet, totSheets;
+var protSheets, totSheets;
 
 async function modify(archive, res) {
     try {
         const data = fs.readFileSync(archive);
         const zip = await JSZip.loadAsync(data);
         const rgx = /xl\/worksheets\/sheet\d+\.xml/;
+        sendProg("12 Iterating through elements.");
 
         const modPromises = [];
-        foi = [];
-        foiAdd = [];
+        (foi = []), (foiAdd = []);
         modified = false;
 
         zip.forEach(async (pth, file) => {
@@ -231,7 +228,7 @@ async function modify(archive, res) {
                         change = true;
                     }
                     sendProg(
-                        `11 Workbook ${wkProt ? "<span>unlocked</span>" : "is not locked"}.`,
+                        `7 Workbook ${wkProt ? "unlocked" : "is not locked"}.`,
                     );
 
                     const sheets = doc.querySelectorAll("sheets > sheet");
@@ -243,21 +240,16 @@ async function modify(archive, res) {
                         });
                     }
 
-                    let sCnt = 0,
-                        hid;
+                    let sCnt = 0;
                     totSheets = sheets.length;
-                    perSheet = 35 / totSheets;
                     for (const sheet of sheets) {
-                        hid = sheet.getAttribute("state") === "hidden";
-                        if (hid) {
+                        if (sheet.getAttribute("state") === "hidden") {
                             sheet.removeAttribute("state");
                             change = true;
                             sCnt++;
                         }
-                        sendProg(
-                            `${perSheet} Sheet <u>${sheet.getAttribute("name")}</u> ${hid ? "<span>unhidden</span>" : "not hidden"}.`,
-                        );
                     }
+                    sendProg(`10 ${sCnt}/${totSheets} sheets unhidden.`);
 
                     if (change) {
                         zip.file(pth, dom.serialize());
@@ -266,6 +258,7 @@ async function modify(archive, res) {
                 })(pth, file);
                 modPromises.push(modTask);
             } else if (rgx.test(pth)) {
+                protSheets = 0;
                 const modTask = (async (pth, file) => {
                     const buf = await file.async("text");
                     const dom = new JSDOM(buf, {
@@ -279,18 +272,17 @@ async function modify(archive, res) {
                         prt.remove();
                         zip.file(pth, dom.serialize());
                         modified = true;
+                        protSheets++;
                     }
-                    sendProg(
-                        `${perSheet} Sheet <u>${pth.slice(pth.lastIndexOf("/") + 1)}</u> ${prt ? "<span>unprotected</span>" : "not protected"}.`,
-                    );
                 })(pth, file);
                 modPromises.push(modTask);
             }
         });
 
         await Promise.all(modPromises);
-        sendProg(`+ Processing complete.`);
+        sendProg(`45 ${protSheets}/${totSheets} sheets unlocked.`);
         if (!modified) {
+            sendProg("+ File is not locked.");
             return res.send(
                 "<font color='blue'>This file is not locked.</font>",
             );
@@ -301,6 +293,7 @@ async function modify(archive, res) {
             compressionOptions: { level: 9 },
         });
         fs.writeFileSync("unlocked.xlsx", newZipData);
+        sendProg("+ File prepared for download.");
         return res.send(show());
     } catch (err) {
         console.log(err);
