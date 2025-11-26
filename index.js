@@ -81,7 +81,7 @@ td {
     height: 100%; width: 0; background: linear-gradient(to right,blue,green); transition: .2s;
     color: #fff; text-align: center; font: normal 14px/28px Arial, sans-serif;
 }
-span { color: #a00; }
+span { color: #c00; }
         </style>
     </head>
     <body>
@@ -159,8 +159,10 @@ function addClient(res) {
 }
 
 function sendProg(mssg) {
-    console.log(mssg);
-    const message = `data: ${mssg}\n\n`;
+    //console.log(mssg);
+    const ix = mssg.indexOf(" ");
+    //mssg = `${mssg.substr(0,ix)} <span color='grren'>✔</span> ${mssg.slice(ix + 1)}`;
+    const message = `data: ${mssg.substr(0, ix)} <font color='green'>✔</font>&nbsp;${mssg.slice(ix + 1)}\n\n`;
     for (const client of clients) client.write(message);
 }
 
@@ -179,7 +181,7 @@ app.get("/events", (req, res) => {
 });
 
 app.post("/upload", async (req, res) => {
-    //sendProg("5 Processing started.");
+    sendProg("5 Processing started.");
     upload.single("myFile")(req, res, (err) => {
         if (err) {
             const errorMessage =
@@ -214,6 +216,7 @@ async function modify(archive, res) {
         foi = [];
         foiAdd = [];
         modified = false;
+        totSheets = 0;
 
         zip.forEach(async (pth, file) => {
             if (pth === "xl/workbook.xml") {
