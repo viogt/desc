@@ -54,13 +54,8 @@ border-radius: 16px;
 font: normal 18px Arial, sans-serif;
 text-align: center;
 }
-            h2 {
-                font:
-                    bold 32px Arial,
-                    sans-serif;
-                color: #aab;
-            }
-            input[type="file"] { font-size: 18px; }
+h2 { font: bold 32px Arial,sans-serif; color: #aab; }
+input[type="file"] { font-size: 18px; }
 b { font-weight:normal; background-color: orange; padding: 2px 8px; border-radius: 6px; }
 b[lilac] { background-color: yellow; }
 table {
@@ -74,13 +69,15 @@ td {
   padding: 6px;
 }
 #progress {
-    width: 100%; height: 20px; background: #ddd;
-    margin-top: 20px; border-radius: 6px; overflow: hidden;
+    width: 100%; height: 32px; background: #ddd;
+    margin: 20px 0; border-radius: 16px; overflow: hidden;
 }
 #bar {
-    height: 100%; width: 0; background-color: green; transition: .2s;
-    color: #fff; text-align: center; font: normal 14px/20px Arial, sans-serif;
+    height: 100%; width: 0; background: linear-gradient(to right,blue,green); transition: .2s;
+    color: #fff; text-align: center; font: normal 16px/32px Arial, sans-serif;
 }
+span { color: #c00; }
+p { margin-left: 20%; text-align: left; }
         </style>
     </head>
     <body>
@@ -94,27 +91,39 @@ td {
 const log = document.getElementById("message");
 const bar = document.getElementById("bar");
 
+function out(s) {
+    const el = document.createElement("p");
+    el.innerHTML = s;
+    log.appendChild(el);
+}
+
 const es = new EventSource("/events");
 let progress;
 
 es.onmessage = (event) => {
     let percent;
-    log.innerHTML += event.data.substr(event.data.indexOf(' ')+1) + "<br>";
+    //log.innerHTML += event.data.substr(event.data.indexOf(' ')+1) + "<br>";
     if(event.data.charAt(0) == '0') return;
     if(event.data.charAt(0) == '+') percent = '100%';
-    else percent = (progress += parseInt(event.data)) + '%';
+    else {
+        const n = parseInt(event.data);
+        if(Number.isNaN(n)) return;
+        percent = (progress += n) + '%';
+    }
+    out(event.data.substr(event.data.indexOf(' ')+1));
     bar.style.width = percent;
     bar.textContent = percent;
 };
 
 es.onerror = () => {
-    log.textContent += "[Error / connection lost]\\n";
+    //log.innerHTML += "<br><font color='red'>[Error / connection lost]</font>";
+    out("<br><font color='red'>[Error / connection lost]</font>");
 };
             async function uploadFile() {
                 const fileInput = document.getElementById("fileInput");
                 const file = fileInput.files[0]; // Get the first selected file
                 const messageElement = document.getElementById("message");
-                messageElement.textContent = "";
+                messageElement.innerHTML = "";
                 progress = 0;
 
                 if (!file || !file.name.endsWith(".xlsx")) {
@@ -131,14 +140,15 @@ es.onerror = () => {
                         body: formData,
                     });
 
-                    if (response.ok)
+                    if (response.ok) {
                         messageElement.innerHTML += await response.text();
-                    else {
+                        window.scroll({top:document.body.scrollHeight, behavior:'smooth'});
+                    } else {
                         const errorText = await response.text();
                         //messageElement.textContent = "Upload failed:" + response.status + " - " + errorText;
                     }
                 } catch (error) {
-                    messageElement.textContent = "Network error: " + error.message;
+                    messageElement.innerHTML = "<font color='red'>Network error:</font> " + error.message;
                     console.error("Fetch error:", error);
                 }
             }
@@ -157,7 +167,11 @@ function addClient(res) {
 }
 
 function sendProg(mssg) {
-    const message = `data: ${mssg}\n\n`;
+    //console.log(mssg);
+    const ix = mssg.indexOf(" ");
+    //mssg = `${mssg.substr(0,ix)} <span color='grren'>✔</span> ${mssg.slice(ix + 1)}`;
+    //const message = `data: ${mssg.substr(0, ix)} <font color='green'>✔</font>&nbsp;${mssg.slice(ix + 1)}\n\n`;
+    const message = `data: ${mssg.replace(" ", " <font color='green'>✔</font>&nbsp;")}\n\n`;
     for (const client of clients) client.write(message);
 }
 
@@ -199,18 +213,19 @@ app.get("/download", (req, res) => {
 });
 
 var foi, foiAdd, modified;
-var protSheets, totSheets;
+var perSheet, totSheets;
 
 async function modify(archive, res) {
     try {
         const data = fs.readFileSync(archive);
         const zip = await JSZip.loadAsync(data);
         const rgx = /xl\/worksheets\/sheet\d+\.xml/;
-        sendProg("12 Iterating through elements.");
 
         const modPromises = [];
-        (foi = []), (foiAdd = []);
+        foi = [];
+        foiAdd = [];
         modified = false;
+        totSheets = 0;
 
         zip.forEach(async (pth, file) => {
             if (pth === "xl/workbook.xml") {
@@ -228,7 +243,7 @@ async function modify(archive, res) {
                         change = true;
                     }
                     sendProg(
-                        `7 Workbook ${wkProt ? "unlocked" : "is not locked"}.`,
+                        `11 Workbook ${wkProt ? "<span>unlocked</span>" : "is not locked"}.`,
                     );
 
                     const sheets = doc.querySelectorAll("sheets > sheet");
@@ -240,16 +255,21 @@ async function modify(archive, res) {
                         });
                     }
 
-                    let sCnt = 0;
+                    let sCnt = 0,
+                        hid;
                     totSheets = sheets.length;
+                    perSheet = 35 / totSheets;
                     for (const sheet of sheets) {
-                        if (sheet.getAttribute("state") === "hidden") {
+                        hid = sheet.getAttribute("state") === "hidden";
+                        if (hid) {
                             sheet.removeAttribute("state");
                             change = true;
                             sCnt++;
                         }
+                        sendProg(
+                            `${perSheet} Sheet <u>${sheet.getAttribute("name")}</u> ${hid ? "<span>unhidden</span>" : "not hidden"}.`,
+                        );
                     }
-                    sendProg(`10 ${sCnt}/${totSheets} sheets unhidden.`);
 
                     if (change) {
                         zip.file(pth, dom.serialize());
@@ -258,7 +278,6 @@ async function modify(archive, res) {
                 })(pth, file);
                 modPromises.push(modTask);
             } else if (rgx.test(pth)) {
-                protSheets = 0;
                 const modTask = (async (pth, file) => {
                     const buf = await file.async("text");
                     const dom = new JSDOM(buf, {
@@ -272,17 +291,18 @@ async function modify(archive, res) {
                         prt.remove();
                         zip.file(pth, dom.serialize());
                         modified = true;
-                        protSheets++;
                     }
+                    sendProg(
+                        `${perSheet} Sheet <u>${pth.slice(pth.lastIndexOf("/") + 1)}</u> ${prt ? "<span>unprotected</span>" : "not protected"}.`,
+                    );
                 })(pth, file);
                 modPromises.push(modTask);
             }
         });
 
         await Promise.all(modPromises);
-        sendProg(`45 ${protSheets}/${totSheets} sheets unlocked.`);
+        sendProg(`+ Processing complete.`);
         if (!modified) {
-            sendProg("+ File is not locked.");
             return res.send(
                 "<font color='blue'>This file is not locked.</font>",
             );
@@ -293,7 +313,6 @@ async function modify(archive, res) {
             compressionOptions: { level: 9 },
         });
         fs.writeFileSync("unlocked.xlsx", newZipData);
-        sendProg("+ File prepared for download.");
         return res.send(show());
     } catch (err) {
         console.log(err);

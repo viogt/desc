@@ -54,13 +54,8 @@ border-radius: 16px;
 font: normal 18px Arial, sans-serif;
 text-align: center;
 }
-            h2 {
-                font:
-                    bold 32px Arial,
-                    sans-serif;
-                color: #aab;
-            }
-            input[type="file"] { font-size: 18px; }
+h2 { font: bold 32px Arial,sans-serif; color: #aab; }
+input[type="file"] { font-size: 18px; }
 b { font-weight:normal; background-color: orange; padding: 2px 8px; border-radius: 6px; }
 b[lilac] { background-color: yellow; }
 table {
@@ -74,14 +69,15 @@ td {
   padding: 6px;
 }
 #progress {
-    width: 100%; height: 28px; background: #ddd;
-    margin-top: 20px; border-radius: 6px; overflow: hidden;
+    width: 100%; height: 32px; background: #ddd;
+    margin: 20px 0; border-radius: 16px; overflow: hidden;
 }
 #bar {
     height: 100%; width: 0; background: linear-gradient(to right,blue,green); transition: .2s;
-    color: #fff; text-align: center; font: normal 14px/28px Arial, sans-serif;
+    color: #fff; text-align: center; font: normal 16px/32px Arial, sans-serif;
 }
 span { color: #c00; }
+p { margin: 0 0 8px 20%; text-align: left; }
         </style>
     </head>
     <body>
@@ -95,27 +91,39 @@ span { color: #c00; }
 const log = document.getElementById("message");
 const bar = document.getElementById("bar");
 
+function out(s) {
+    const el = document.createElement("p");
+    el.innerHTML = s;
+    log.appendChild(el);
+}
+
 const es = new EventSource("/events");
 let progress;
 
 es.onmessage = (event) => {
     let percent;
-    log.innerHTML += event.data.substr(event.data.indexOf(' ')+1) + "<br>";
+    //log.innerHTML += event.data.substr(event.data.indexOf(' ')+1) + "<br>";
     if(event.data.charAt(0) == '0') return;
     if(event.data.charAt(0) == '+') percent = '100%';
-    else percent = (progress += parseInt(event.data)) + '%';
+    else {
+        const n = parseInt(event.data);
+        if(Number.isNaN(n)) return;
+        percent = (progress += n) + '%';
+    }
+    out(event.data.substr(event.data.indexOf(' ')+1));
     bar.style.width = percent;
     bar.textContent = percent;
 };
 
 es.onerror = () => {
-    log.textContent += "[Error / connection lost]\\n";
+    //log.innerHTML += "<br><font color='red'>[Error / connection lost]</font>";
+    out("<br><font color='red'>[Error / connection lost]</font>");
 };
             async function uploadFile() {
                 const fileInput = document.getElementById("fileInput");
                 const file = fileInput.files[0]; // Get the first selected file
                 const messageElement = document.getElementById("message");
-                messageElement.textContent = "";
+                messageElement.innerHTML = "";
                 progress = 0;
 
                 if (!file || !file.name.endsWith(".xlsx")) {
@@ -140,7 +148,7 @@ es.onerror = () => {
                         //messageElement.textContent = "Upload failed:" + response.status + " - " + errorText;
                     }
                 } catch (error) {
-                    messageElement.textContent = "Network error: " + error.message;
+                    messageElement.innerHTML = "<font color='red'>Network error:</font> " + error.message;
                     console.error("Fetch error:", error);
                 }
             }
@@ -162,7 +170,8 @@ function sendProg(mssg) {
     //console.log(mssg);
     const ix = mssg.indexOf(" ");
     //mssg = `${mssg.substr(0,ix)} <span color='grren'>✔</span> ${mssg.slice(ix + 1)}`;
-    const message = `data: ${mssg.substr(0, ix)} <font color='green'>✔</font>&nbsp;${mssg.slice(ix + 1)}\n\n`;
+    //const message = `data: ${mssg.substr(0, ix)} <font color='green'>✔</font>&nbsp;${mssg.slice(ix + 1)}\n\n`;
+    const message = `data: ${mssg.replace(" ", " <font color='green'>✔</font>&nbsp;")}\n\n`;
     for (const client of clients) client.write(message);
 }
 
@@ -204,7 +213,33 @@ app.get("/download", (req, res) => {
 });
 
 var foi, foiAdd, modified;
-var perSheet, totSheets;
+var totSheets, remSheets, doneSheets;
+
+function calcProgess() {
+    let perSheet;
+    if (totSheets < 0) {
+        perSheet = 3;
+        remSheets -= perSheet;
+        doneSheets++;
+    } else {
+        perSheet = remSheets / (totSheets - doneSheets);
+        remSheets -= perSheet;
+        if (remSheets <= 0) {
+            perSheet = 1;
+            remSheets = 0;
+        }
+        doneSheets++;
+    }
+    console.log(
+        "perSheet:",
+        perSheet,
+        "remSheets:",
+        remSheets,
+        "doneSheets:",
+        doneSheets,
+    );
+    return perSheet;
+}
 
 async function modify(archive, res) {
     try {
@@ -216,7 +251,9 @@ async function modify(archive, res) {
         foi = [];
         foiAdd = [];
         modified = false;
-        totSheets = 0;
+        totSheets = -1;
+        remSheets = 70;
+        doneSheets = 0;
 
         zip.forEach(async (pth, file) => {
             if (pth === "xl/workbook.xml") {
@@ -248,8 +285,7 @@ async function modify(archive, res) {
 
                     let sCnt = 0,
                         hid;
-                    totSheets = sheets.length;
-                    perSheet = 35 / totSheets;
+                    totSheets = sheets.length * 2;
                     for (const sheet of sheets) {
                         hid = sheet.getAttribute("state") === "hidden";
                         if (hid) {
@@ -258,7 +294,7 @@ async function modify(archive, res) {
                             sCnt++;
                         }
                         sendProg(
-                            `${perSheet} Sheet <u>${sheet.getAttribute("name")}</u> ${hid ? "<span>unhidden</span>" : "not hidden"}.`,
+                            `${calcProgess()} Sheet <u>${sheet.getAttribute("name")}</u> ${hid ? "<span>unhidden</span>" : "not hidden"}.`,
                         );
                     }
 
@@ -284,7 +320,7 @@ async function modify(archive, res) {
                         modified = true;
                     }
                     sendProg(
-                        `${perSheet} Sheet <u>${pth.slice(pth.lastIndexOf("/") + 1)}</u> ${prt ? "<span>unprotected</span>" : "not protected"}.`,
+                        `${calcProgess()} Sheet <u>${pth.slice(pth.lastIndexOf("/") + 1)}</u> ${prt ? "<span>unprotected</span>" : "not protected"}.`,
                     );
                 })(pth, file);
                 modPromises.push(modTask);
