@@ -35,128 +35,6 @@ const upload = multer({
     fileFilter: xlsxFileFilter,
 });
 
-const uploadFormHtml = `
-<!doctype html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Upload an Excel File</title>
-        <style>
-body { background-color: #ccc;}
-.container {
-max-width: 600px;
-margin: auto;
-padding: 24px;
-background-color: #fff;
-box-shadow: 0 4px 8px #888;
-border-radius: 16px;
-font: normal 18px Arial, sans-serif;
-text-align: center;
-}
-h2 { font: bold 32px Arial,sans-serif; color: #aab; }
-input[type="file"] { font-size: 18px; }
-b { font-weight:normal; background-color: orange; padding: 2px 8px; border-radius: 6px; }
-b[lilac] { background-color: yellow; }
-table {
-  border-collapse: collapse;
-  width: 100%;
-  padding: 12px;
-  border-top:.8px solid #ccc;
-}
-td {
-  border-bottom: .8px solid #ccc;
-  padding: 6px;
-}
-#progress {
-    width: 100%; height: 32px; background: #ddd;
-    margin: 20px 0; border-radius: 16px; overflow: hidden;
-}
-#bar {
-    height: 100%; width: 0; background: linear-gradient(to right,blue,green); transition: .2s;
-    color: #fff; text-align: center; font: normal 16px/32px Arial, sans-serif;
-}
-span { color: #c00; }
-p { margin: 0 0 8px 20%; text-align: left; }
-        </style>
-    </head>
-    <body>
-<div class="container">
-<h2>Upload and Analyze</h2>
-<input type="file" id="fileInput" onchange="uploadFile()" />
-<div id="progress"><div id="bar"></div></div>
-<div id="message"></div>
-</div>
-        <script>
-const log = document.getElementById("message");
-const bar = document.getElementById("bar");
-
-function out(s) {
-    const el = document.createElement("p");
-    el.innerHTML = s;
-    log.appendChild(el);
-}
-
-const es = new EventSource("/events");
-let progress;
-
-es.onmessage = (event) => {
-    let percent;
-    //log.innerHTML += event.data.substr(event.data.indexOf(' ')+1) + "<br>";
-    if(event.data.charAt(0) == '0') return;
-    if(event.data.charAt(0) == '+') percent = '100%';
-    else {
-        const n = parseInt(event.data);
-        if(Number.isNaN(n)) return;
-        percent = (progress += n) + '%';
-    }
-    out(event.data.substr(event.data.indexOf(' ')+1));
-    bar.style.width = percent;
-    bar.textContent = percent;
-};
-
-es.onerror = () => {
-    //log.innerHTML += "<br><font color='red'>[Error / connection lost]</font>";
-    out("<br><font color='red'>[Error / connection lost]</font>");
-};
-            async function uploadFile() {
-                const fileInput = document.getElementById("fileInput");
-                const file = fileInput.files[0]; // Get the first selected file
-                const messageElement = document.getElementById("message");
-                messageElement.innerHTML = "";
-                progress = 0;
-
-                if (!file || !file.name.endsWith(".xlsx")) {
-                    messageElement.innerHTML =
-                        "<font color='red'>Please select an .XLSX file.</font>";
-                    return;
-                }
-                const formData = new FormData();
-                formData.append("myFile", file);
-
-                try {
-                    const response = await fetch("/upload", {
-                        method: "POST",
-                        body: formData,
-                    });
-
-                    if (response.ok) {
-                        messageElement.innerHTML += await response.text();
-                        window.scroll({top:document.body.scrollHeight, behavior:'smooth'});
-                    } else {
-                        const errorText = await response.text();
-                        //messageElement.textContent = "Upload failed:" + response.status + " - " + errorText;
-                    }
-                } catch (error) {
-                    messageElement.innerHTML = "<font color='red'>Network error:</font> " + error.message;
-                    console.error("Fetch error:", error);
-                }
-            }
-        </script>
-    </body>
-</html>
-`;
-
 const clients = new Set();
 
 function addClient(res) {
@@ -176,8 +54,9 @@ function sendProg(mssg) {
 }
 
 app.get("/", (req, res) => {
-    res.send(uploadFormHtml);
-    sendProg("0 Process started.");
+    res.sendFile(path.join(__dirname, "index.html"));
+    //res.send(uploadFormHtml);
+    //sendProg("0 Process started.");
 });
 
 app.get("/events", (req, res) => {

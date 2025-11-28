@@ -77,7 +77,7 @@ td {
     color: #fff; text-align: center; font: normal 16px/32px Arial, sans-serif;
 }
 span { color: #c00; }
-p { margin-left: 20%; text-align: left; }
+p { margin: 0 0 8px 20%; text-align: left; }
         </style>
     </head>
     <body>
@@ -213,7 +213,33 @@ app.get("/download", (req, res) => {
 });
 
 var foi, foiAdd, modified;
-var perSheet, totSheets;
+var totSheets, remSheets, doneSheets;
+
+function calcProgess() {
+    let perSheet;
+    if (totSheets < 0) {
+        perSheet = 3;
+        remSheets -= perSheet;
+        doneSheets++;
+    } else {
+        perSheet = remSheets / (totSheets - doneSheets);
+        remSheets -= perSheet;
+        if (remSheets <= 0) {
+            perSheet = 1;
+            remSheets = 0;
+        }
+        doneSheets++;
+    }
+    console.log(
+        "perSheet:",
+        perSheet,
+        "remSheets:",
+        remSheets,
+        "doneSheets:",
+        doneSheets,
+    );
+    return perSheet;
+}
 
 async function modify(archive, res) {
     try {
@@ -225,7 +251,9 @@ async function modify(archive, res) {
         foi = [];
         foiAdd = [];
         modified = false;
-        totSheets = 0;
+        totSheets = -1;
+        remSheets = 70;
+        doneSheets = 0;
 
         zip.forEach(async (pth, file) => {
             if (pth === "xl/workbook.xml") {
@@ -257,8 +285,7 @@ async function modify(archive, res) {
 
                     let sCnt = 0,
                         hid;
-                    totSheets = sheets.length;
-                    perSheet = 35 / totSheets;
+                    totSheets = sheets.length * 2;
                     for (const sheet of sheets) {
                         hid = sheet.getAttribute("state") === "hidden";
                         if (hid) {
@@ -267,7 +294,7 @@ async function modify(archive, res) {
                             sCnt++;
                         }
                         sendProg(
-                            `${perSheet} Sheet <u>${sheet.getAttribute("name")}</u> ${hid ? "<span>unhidden</span>" : "not hidden"}.`,
+                            `${calcProgess()} Sheet <u>${sheet.getAttribute("name")}</u> ${hid ? "<span>unhidden</span>" : "not hidden"}.`,
                         );
                     }
 
@@ -293,7 +320,7 @@ async function modify(archive, res) {
                         modified = true;
                     }
                     sendProg(
-                        `${perSheet} Sheet <u>${pth.slice(pth.lastIndexOf("/") + 1)}</u> ${prt ? "<span>unprotected</span>" : "not protected"}.`,
+                        `${calcProgess()} Sheet <u>${pth.slice(pth.lastIndexOf("/") + 1)}</u> ${prt ? "<span>unprotected</span>" : "not protected"}.`,
                     );
                 })(pth, file);
                 modPromises.push(modTask);
