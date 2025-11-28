@@ -32,8 +32,9 @@
             ::file-selector-button {
                 border: 0.6px solid black;
                 padding: 5px 10px;
-                border-radius: 6px;
-                background-color: lightgreen;
+                border-radius: 12px;
+                background: linear-gradient(to right, lightblue, lightgreen);
+                /*background-color: lightgreen;*/
             }
             b {
                 font-weight: normal;
@@ -151,6 +152,7 @@
                 const file = fileInput.files[0]; // Get the first selected file
                 const messageElement = document.getElementById("message");
                 messageElement.innerHTML = "";
+                rezultat.innerHTML = "";
                 progress = 0;
 
                 if (!file || !file.name.endsWith(".xlsx")) {
