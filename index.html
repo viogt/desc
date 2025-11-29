@@ -30,7 +30,7 @@
                 font-size: 18px;
             }
             ::file-selector-button {
-                border: 0.6px solid black;
+                border: 0.6px solid #8c8;
                 padding: 5px 10px;
                 border-radius: 12px;
                 background: linear-gradient(to right, lightblue, lightgreen);
@@ -123,6 +123,10 @@
                     el.style.color = "#000";
                 }, 100);*/
                 el.classList.add("fadeIn");
+                window.scroll({
+                    top: document.body.scrollHeight,
+                    behavior: "smooth",
+                });
             }
 
             const es = new EventSource("/events");

@@ -8,21 +8,6 @@ const { JSDOM } = require("jsdom");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const xlsxFileFilter = (req, file, cb) => {
-    const isXlsxExt = path.extname(file.originalname).toLowerCase() === ".xlsx";
-    const isXlsxMime =
-        file.mimetype ===
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    if (isXlsxExt && isXlsxMime) {
-        cb(null, true);
-    } else {
-        cb(
-            new Error("Only Microsoft Excel (.xlsx) files are permitted."),
-            false,
-        );
-    }
-};
-
 const storage = multer.diskStorage({
     destination: ".",
     filename: (req, file, cb) => {
@@ -30,10 +15,7 @@ const storage = multer.diskStorage({
     },
 });
 
-const upload = multer({
-    storage: storage,
-    fileFilter: xlsxFileFilter,
-});
+const upload = multer({ storage: storage });
 
 const clients = new Set();
 
@@ -252,7 +234,7 @@ function show() {
         str += `<tr><td>${num}</td><td align="left">${el.name}</td><td>${el.state == "hidden" ? "<b lilac>hidden</b>" : "—"}</td><td>${el.prot ? "<b>protected</b>" : "—"}</td></tr>`;
         num++;
     }
-    return str + "</table><br>▾ <a href='/download'>Download unlocked</a>";
+    return str + "</table><br>▾ <a href='/download'>DOWNLOAD UNLOCKED</a>";
 }
 
 app.listen(PORT, () => {
