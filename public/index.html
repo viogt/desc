@@ -31,7 +31,7 @@
             ::file-selector-button {
                 border: none;
                 padding: 5px 1.2em;
-                border-radius: 12px;
+                border-radius: 13px;
                 background: linear-gradient(to bottom, #484,#242);
                 color: #fff;
                 transition: 0.2s;
@@ -84,7 +84,7 @@
                 transform: scale(1.2);
             }
             .fadeIn {
-                animation: fadeIn 0.8s ease forwards;
+                animation: fadeIn 0.4s ease forwards;
             }
             @keyframes fadeIn {
                 from {
@@ -121,10 +121,6 @@
                 el.innerHTML = s;
                 log.appendChild(el);
                 el.classList.add("fadeIn");
-                window.scroll({
-                    top: document.body.scrollHeight,
-                    behavior: "smooth",
-                });
             }
 
             const es = new EventSource("/events");
@@ -173,10 +169,11 @@
 
                     if (response.ok) {
                         rezultat.innerHTML = await response.text();
-                        window.scroll({
+                        setTimeout(()=>{ window.scroll({
                             top: document.body.scrollHeight,
                             behavior: "smooth",
                         });
+                        }, 500);
                     } else {
                         const errorText = await response.text();
                         rezultat.textContent =
