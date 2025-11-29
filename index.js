@@ -4,9 +4,11 @@ const path = require("path");
 const fs = require("fs");
 const JSZip = require("jszip");
 const { JSDOM } = require("jsdom");
+const { send } = require("process");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+app.use(express.static('public'));
 
 const storage = multer.diskStorage({
     destination: ".",
@@ -27,19 +29,25 @@ function addClient(res) {
 }
 
 function sendProg(mssg) {
-    //console.log(mssg);
+    try {
     const ix = mssg.indexOf(" ");
-    //mssg = `${mssg.substr(0,ix)} <span color='grren'>✔</span> ${mssg.slice(ix + 1)}`;
-    //const message = `data: ${mssg.substr(0, ix)} <font color='green'>✔</font>&nbsp;${mssg.slice(ix + 1)}\n\n`;
     const message = `data: ${mssg.replace(" ", " <font color='green'>✔</font>&nbsp;")}\n\n`;
     for (const client of clients) client.write(message);
+    } catch (err) {
+        console.log("SSE Error:", err.message);
+    }
 }
 
 app.get("/", (req, res) => {
+    console.log(req.url);
     res.sendFile(path.join(__dirname, "index.html"));
     //res.send(uploadFormHtml);
     //sendProg("0 Process started.");
 });
+/*app.get('/favicon.ico', (req, res) => {
+  // Assuming the favicon.ico is in your public folder
+  res.sendFile(path.join(__dirname, 'public', 'favicon.ico'));
+});*/
 
 app.get("/events", (req, res) => {
     console.log("Client connected to SSE");
@@ -48,6 +56,7 @@ app.get("/events", (req, res) => {
     res.setHeader("Connection", "keep-alive");
     res.flushHeaders();
     addClient(res);
+    sendProg("0 About to start...");
 });
 
 app.post("/upload", async (req, res) => {
@@ -91,14 +100,6 @@ function calcProgess() {
         }
         doneSheets++;
     }
-    console.log(
-        "perSheet:",
-        perSheet,
-        "remSheets:",
-        remSheets,
-        "doneSheets:",
-        doneSheets,
-    );
     return perSheet;
 }
 
@@ -192,7 +193,7 @@ async function modify(archive, res) {
         sendProg(`+ Processing complete.`);
         if (!modified) {
             return res.send(
-                "<font color='blue'>This file is not locked.</font>",
+                "<img src='logo.png'/>&nbsp;<font color='green'>This file is not locked.</font>",
             );
         }
         const newZipData = await zip.generateAsync({
@@ -213,28 +214,13 @@ function show() {
         const num = parseInt(el.pth.match(/\d+\.xml$/)[0]) - 1;
         foi[num].prot = el.prot;
     }
-    console.log(foi, foiAdd);
-
-    console.log("\n-----------------sheets:", foi.length);
     let num = 1;
-    for (el of foi) {
-        console.log(
-            num,
-            el.name,
-            el.state == "hidden" ? "HIDDEN" : "---",
-            el.id,
-            el.prot ? "(protected)" : "",
-        );
-        num++;
-    }
-    console.log("> Unlocked.xlsx created");
-    num = 1;
-    let str = "<br><font color='blue'>FILE UNLOCKED:</font><br><table>";
+    let str = "<br><font color='green'>FILE UNLOCKED:</font><br><table>";
     for (el of foi) {
         str += `<tr><td>${num}</td><td align="left">${el.name}</td><td>${el.state == "hidden" ? "<b lilac>hidden</b>" : "—"}</td><td>${el.prot ? "<b>protected</b>" : "—"}</td></tr>`;
         num++;
     }
-    return str + "</table><br>▾ <a href='/download'>DOWNLOAD UNLOCKED</a>";
+    return str + "</table><br><img src='logo.png'/>&nbsp;<a style='color:green' href='/download'>DOWNLOAD UNLOCKED</a>";
 }
 
 app.listen(PORT, () => {

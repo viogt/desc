@@ -3,6 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
         <title>Upload an Excel File</title>
         <style>
             body {
@@ -18,33 +19,33 @@
                 font:
                     normal 15px Arial,
                     sans-serif;
-                /*text-align: center;*/
             }
             h2 {
                 font:
-                    bold 28px Arial,
-                    sans-serif;
-                color: #aab;
+                    bold 24px Arial,sans-serif;
+                color: green;
             }
             input[type="file"] {
-                font-size: 18px;
+                font-size: 16px;
             }
             ::file-selector-button {
-                border: 0.6px solid #8c8;
-                padding: 5px 10px;
+                border: none;
+                padding: 5px 1.2em;
                 border-radius: 12px;
-                background: linear-gradient(to right, lightblue, lightgreen);
-                /*background-color: lightgreen;*/
+                background: linear-gradient(to bottom, #484,#242);
+                color: #fff;
+                transition: 0.2s;
             }
             b {
                 font-weight: normal;
-                background-color: orange;
+                background-color: #f82;
                 padding: 2px 8px;
                 border-radius: 6px;
             }
             b[lilac] {
-                background-color: yellow;
+                background-color: #f98;
             }
+            img { width: 20px; height: 20px; }
             table {
                 border-collapse: collapse;
                 width: 100%;
@@ -58,7 +59,7 @@
             #progress {
                 width: 100%;
                 height: 32px;
-                background: #ddd;
+                background: #ded;
                 margin: 20px 0;
                 border-radius: 16px;
                 overflow: hidden;
@@ -66,7 +67,7 @@
             #bar {
                 height: 100%;
                 width: 0;
-                background: linear-gradient(to right, blue, green);
+                background: linear-gradient(to bottom, #484,#242);
                 transition: 0.2s;
                 color: #fff;
                 text-align: center;
@@ -99,7 +100,7 @@
     </head>
     <body>
         <div class="container">
-            <h2>Upload an .xlsx file</h2>
+            <h2><img src="logo.png"/>&nbsp;Upload an .xlsx file</h2>
             <input
                 type="file"
                 id="fileInput"
@@ -119,9 +120,6 @@
                 const el = document.createElement("p");
                 el.innerHTML = s;
                 log.appendChild(el);
-                /*settimeOut(() => {
-                    el.style.color = "#000";
-                }, 100);*/
                 el.classList.add("fadeIn");
                 window.scroll({
                     top: document.body.scrollHeight,
