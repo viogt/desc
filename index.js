@@ -8,7 +8,8 @@ const { send } = require("process");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-app.use(express.static('public'));
+//app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const storage = multer.diskStorage({
     destination: ".",
@@ -29,28 +30,18 @@ function addClient(res) {
 }
 
 function sendProg(mssg) {
-    try {
     const ix = mssg.indexOf(" ");
     const message = `data: ${mssg.replace(" ", " <font color='green'>✔</font>&nbsp;")}\n\n`;
     for (const client of clients) client.write(message);
-    } catch (err) {
-        console.log("SSE Error:", err.message);
-    }
 }
 
-app.get("/", (req, res) => {
+/*app.get("/", (req, res) => {
     console.log(req.url);
     res.sendFile(path.join(__dirname, "index.html"));
-    //res.send(uploadFormHtml);
-    //sendProg("0 Process started.");
-});
-/*app.get('/favicon.ico', (req, res) => {
-  // Assuming the favicon.ico is in your public folder
-  res.sendFile(path.join(__dirname, 'public', 'favicon.ico'));
 });*/
 
 app.get("/events", (req, res) => {
-    console.log("Client connected to SSE");
+    //console.log("Client connected to SSE");
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
