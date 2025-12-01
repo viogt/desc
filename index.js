@@ -115,6 +115,7 @@ function serveFile(req, res, filePath) {
 const clients = new Set();
 
 function addClient(res) {
+  res.socket.setNoDelay(true);
   clients.add(res);
   res.on("close", () => {
     clients.delete(res);
@@ -127,7 +128,9 @@ function sendProg(mssg) {
     " ",
     " <font color='green'>✔</font>&nbsp;"
   )}\n\n`;
-  for (const client of clients) client.write(message);
+  for (const client of clients) {
+    client.write(message);
+  }
 }
 
 var foi, foiAdd, modified;
