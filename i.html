@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Client Example</title>
+</head>
+
+<body>
+    <h1>WebSocket Communication</h1>
+    <input type="text" id="messageInput" onchange="sendMessage()" placeholder="Type a message...">
+    <input type="file" id="fileInput" onchange="uploadFile()" />
+    <div id="messages"></div>
+
+    <script>
+        const wsUrl = 'ws://localhost:8080';
+        const output = document.getElementById('messages');
+        const input = document.getElementById('messageInput');
+
+        const socket = new WebSocket(wsUrl);
+        socket.onopen = function (e) {
+            console.log('WebSocket connection established.');
+        };
+        socket.onmessage = function (event) {
+            logMessage(`SERVER: ${event.data}`);
+        };
+        socket.onclose = function (event) {
+            if (event.wasClean) {
+                console.log(`Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+            } else {
+                console.log('**CONNECTION DIED** (server or network error)');
+            }
+        };
+        socket.onerror = function (error) {
+            console.log(`WebSocket Error: ${error.message}`);
+        };
+
+        function sendMessage() {
+            const message = input.value;
+            if (message && socket.readyState === WebSocket.OPEN) {
+                socket.send(message);
+                logMessage(`SENT: ${message}`, 'blue');
+                input.value = '';
+            } else if (socket.readyState !== WebSocket.OPEN) {
+                console.log('Cannot send: Connection is not open.');
+            }
+        }
+
+        function logMessage(text, color = 'black') {
+            const p = document.createElement('p');
+            p.style.color = color;
+            p.innerHTML = text;
+            output.appendChild(p);
+            output.scrollTop = output.scrollHeight; //Scroll to bottom
+        }
+
+        function uploadFile() {
+            const fileInput = document.getElementById("fileInput");
+            const file = fileInput.files[0];
+            console.log("Selected file:", file.name, file.size, "bytes");
+            socket.send(JSON.stringify({ fileName: file.name, fileSize: file.size }));
+            socket.send(file);
+        }
+    </script>
+</body>
+
+</html>

@@ -133,7 +133,6 @@
         const log = document.getElementById("message");
         const bar = document.getElementById("bar");
         const rezultat = document.getElementById("rezultat");
-        const fileInput = document.getElementById("fileInput");
 
         function out(s) {
             setTimeout(() => {
@@ -144,62 +143,72 @@
             }, 0);
         }
 
+        const es = new EventSource("/events");
         let progress;
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${window.location.host}`; //'ws://localhost:8080';
-        const socket = new WebSocket(wsUrl);
-        socket.onopen = e => {
-            console.log('WebSocket connection established.');
-        };
-        socket.onmessage = e => {
-            const js = JSON.parse(e.data);
-            if (js.cod < 0) {
-                rezultat.innerHTML = js.mssg;
-                setTimeout(() => {
-                    window.scroll({
-                        top: document.body.scrollHeight,
-                        behavior: "smooth",
-                    });
-                }, 500);
-                return;
+
+        es.onmessage = (event) => {
+            let percent;
+            //log.innerHTML += event.data.substr(event.data.indexOf(' ')+1) + "<br>";
+            if (event.data.charAt(0) == "0") return;
+            if (event.data.charAt(0) == "+") percent = "100%";
+            else {
+                const n = parseInt(event.data);
+                if (Number.isNaN(n)) return;
+                percent = (progress += n) + "%";
             }
-            progress += js.cod; if (progress > 100) progress = 100;
-            percent = progress + "%";
+            out(event.data.substr(event.data.indexOf(" ") + 1));
             bar.style.width = percent;
             bar.textContent = percent;
-            const el = document.createElement("p");
-            el.innerHTML = "<font color='green'>✔</font>&nbsp;" + js.mssg;
-            log.appendChild(el);
-            el.classList.add("fadeIn");
-        };
-        socket.onclose = event => {
-            if (event.wasClean) {
-                console.log(`Connection closed cleanly, code=${event.code} reason=${event.reason}`);
-            } else {
-                console.log('**CONNECTION DIED** (server or network error)');
-            }
-        };
-        socket.onerror = error => {
-            console.log(`WebSocket Error: ${error.message}`);
         };
 
-        /*function sendMessage() {
-            const message = input.value;
-            if (message && socket.readyState === WebSocket.OPEN) {
-                socket.send(message);
-                logMessage(`SENT: ${message}`, 'blue');
-                input.value = '';
-            } else if (socket.readyState !== WebSocket.OPEN) {
-                console.log('Cannot send: Connection is not open.');
-            }
-        }*/
-        function uploadFile() {
-            progress = 0;
-            log.innerHTML = "";
+        es.onerror = () => {
+            //log.innerHTML += "<br><font color='red'>[Error / connection lost]</font>";
+            out("<br><font color='red'>[Error / connection lost]</font>");
+        };
+        async function uploadFile() {
+            const fileInput = document.getElementById("fileInput");
+            const file = fileInput.files[0]; // Get the first selected file
+            const messageElement = document.getElementById("message");
+            messageElement.innerHTML = "";
             rezultat.innerHTML = "";
-            const file = fileInput.files[0];
-            console.log("Selected file:", file.name, file.size, "bytes");
-            socket.send(file);
+            progress = 0;
+
+            if (!file || !file.name.endsWith(".xlsx")) {
+                messageElement.innerHTML =
+                    "<font color='red'>Please select an .XLSX file.</font>";
+                return;
+            }
+            const formData = new FormData();
+            formData.append("myFile", file);
+
+            try {
+                const response = await fetch("/upload", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    rezultat.innerHTML = await response.text();
+                    setTimeout(() => {
+                        window.scroll({
+                            top: document.body.scrollHeight,
+                            behavior: "smooth",
+                        });
+                    }, 500);
+                } else {
+                    const errorText = await response.text();
+                    rezultat.textContent =
+                        "Upload failed:" +
+                        response.status +
+                        " - " +
+                        errorText;
+                }
+            } catch (error) {
+                rezultat.innerHTML =
+                    "<font color='red'>Network error:</font> " +
+                    error.message;
+                console.error("Fetch error:", error);
+            }
         }
     </script>
 </body>
