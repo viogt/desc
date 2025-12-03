@@ -78,7 +78,7 @@ async function modify(Data) {
           change = true;
         }
         sendProg(
-          11,
+          8,
           `Workbook ${wkProt ? "<span>unlocked</span>" : "is not locked"}.`
         );
 
@@ -201,7 +201,7 @@ wss.on("connection", (ws) => {
   ws.on("message", (message, isBinary) => {
     if (isBinary) {
       console.log(`Receiving chunk of size: ${message.byteLength}`);
-      sendProg(5, "Processing file...");
+      sendProg(8, "Processing file...");
       modify(message);
       return;
     }

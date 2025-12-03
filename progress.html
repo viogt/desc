@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>SVG Percentage Loader</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        .loader-container {
+            display: grid;
+            width: 200px;
+            height: 200px;
+            /*background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='none' stroke='%23ccc' stroke-width='10' /%3E%3Cpath id='percentage-arc' fill='none' stroke='%234CAF50' stroke-width='10' stroke-linecap='round' /%3E%3Ctext id='percentage-text' x='50' y='60'%3E0%25%3C/text%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center right;
+            background-size: 100px 100px;*/
+
+        }
+
+        svg, .txt {
+            grid-area: 1 / 1;
+        }
+
+        .txt { color: red; }
+
+        #percentage-text {
+            font-size: 28px;
+            font-weight: bold;
+            fill: #6a6;
+            text-anchor: middle;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="loader-container">
+        <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="#ccc" stroke-width="10" />
+            <path id="percentage-arc" fill="none" stroke="#4CAF50" stroke-width="10" stroke-linecap="round" />
+            <text id="percentage-text" x="50" y="60">0%</text>
+        </svg>
+        <div class="txt">Este cu rosu...</div>
+    </div>
+
+    <button onclick="animateLoader(100)">Start 100% Load</button>
+
+    <script>
+        const CENTER_X = 50;
+        const CENTER_Y = 50;
+        const RADIUS = 45;
+
+        const arcElement = document.getElementById('percentage-arc');
+        const textElement = document.getElementById('percentage-text');
+
+        function polarToCartesian(angleInDegrees) {
+            const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+            return {
+                x: CENTER_X + (RADIUS * Math.cos(angleInRadians)),
+                y: CENTER_Y + (RADIUS * Math.sin(angleInRadians))
+            };
+        }
+
+        function describeArc(percentage) {
+            const endAngle = percentage * 3.6;
+            const start = polarToCartesian(0);
+            const end = polarToCartesian(endAngle);
+            const largeArcFlag = endAngle <= 180 ? "0" : "1";
+            const sweepFlag = "1";
+            if (percentage === 100) {
+                const d = [
+                    `M ${start.x} ${start.y}`,
+                    `A ${RADIUS} ${RADIUS} 0 1 1 ${start.x - 0.01} ${start.y}`
+                ].join(' ');
+                return d;
+            }
+            const d = [
+                `M ${start.x} ${start.y}`,
+                `A ${RADIUS} ${RADIUS} 0 ${largeArcFlag} ${sweepFlag} ${end.x} ${end.y}`
+            ].join(' ');
+
+            return d;
+        }
+
+        /**
+         * Animates the loader from the current value to the target percentage.
+         * @param {number} targetPercentage - The final percentage to display.
+         */
+        function animateLoader(targetPercentage) {
+            let currentPercentage = 0;
+
+            // Calculate the step size based on the duration (e.g., 20ms update interval)
+            const duration = 1500; // 1.5 seconds total animation
+            const frames = duration / 20;
+            const step = targetPercentage / frames;
+
+            function update() {
+                currentPercentage += step;
+
+                if (currentPercentage < targetPercentage) {
+                    arcElement.setAttribute('d', describeArc(currentPercentage));
+                    textElement.textContent = `${Math.round(currentPercentage)}%`;
+                    setTimeout(update, 100);
+                } else {
+                    // Final update to ensure exact target value is hit
+                    arcElement.setAttribute('d', describeArc(targetPercentage));
+                    textElement.textContent = `${targetPercentage}%`;
+                    console.log(`Animation complete at ${targetPercentage}%`);
+                }
+            }
+
+            update();
+        }
+
+        // Initialize the loader arc to 0% on page load
+        arcElement.setAttribute('d', describeArc(0));
+
+        // Example of running the animation automatically:
+        // animateLoader(75); 
+    </script>
+</body>
+
+</html>
