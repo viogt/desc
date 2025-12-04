@@ -140,10 +140,10 @@ async function modify(Data) {
   });
 
   await Promise.all(modPromises);
-  sendProg(20, 'Processing complete.');
+  sendProg(100, 'Processing complete.');
   if (!modified) {
     sendProg(-1,
-      "<img src='public/logo.png'/>&nbsp;<font color='green'>This file is not locked.</font>"
+      "<br/><div class='withIcon'>THIS FILE IS NOT LOCKED.</div>"
     );
     return;
   }
@@ -163,7 +163,7 @@ function show() {
     foi[num].prot = el.prot;
   }
   let num = 1;
-  let str = "<br><font color='green'>FILE UNLOCKED:</font><br><table>";
+  let str = "<br/><div class='withIcon'>FILE UNLOCKED:</div><table>";
   for (el of foi) {
     str += `<tr><td>${num}</td><td align="left">${el.name}</td><td>${
       el.state == "hidden" ? "<b lilac>hidden</b>" : "—"
@@ -172,7 +172,7 @@ function show() {
   }
   return (
     str +
-    "</table><br><img src='public/logo.png'/>&nbsp;<a style='color:green' href='/download'>DOWNLOAD UNLOCKED</a>"
+    "</table><br/><div class='withIcon'><a style='color:green' href='/download'>DOWNLOAD UNLOCKED</a></div>"
   );
 }
 
