@@ -149,6 +149,7 @@ async function modify(Data) {
   }
   const newZipData = await zip.generateAsync({
     type: "nodebuffer",
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     compression: "DEFLATE",
     compressionOptions: { level: 9 },
   });
